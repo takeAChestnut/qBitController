@@ -1531,19 +1531,10 @@ private fun TorrentItem(
                     }
                     val speedText = buildList {
                         if (torrent.downloadSpeed > 0) {
-                            withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) {
-                                append("↓ ${formatBytesPerSecond(torrent.downloadSpeed)}")
-                            }
+                            add("↓ ${formatBytesPerSecond(torrent.downloadSpeed)}")
                         }
-
-                        if (torrent.downloadSpeed > 0 && torrent.uploadSpeed > 0) {
-                            append(" ")
-                        }
-
                         if (torrent.uploadSpeed > 0) {
-                            withStyle(SpanStyle(color = MaterialTheme.colorScheme.tertiary)) {
-                                append("↑ ${formatBytesPerSecond(torrent.uploadSpeed)}")
-                            }
+                            add("↑ ${formatBytesPerSecond(torrent.uploadSpeed)}")
                         }
                     }.joinToString(" ")
                     Text(text = speedText,
