@@ -45,7 +45,7 @@ private fun CategoryTagChip(
                     it
                 }
             }
-            .padding(top = 6.dp, bottom = 6.dp, start = 12.dp, end = 16.dp),
+            .padding(top = 3.dp, bottom = 3.dp, start = 6.dp, end = 6.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             AnimatedVisibility(isSelected) {
@@ -60,7 +60,7 @@ private fun CategoryTagChip(
             Text(
                 text = text,
                 color = contentColorFor(background),
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelMedium,
                 overflow = TextOverflow.Ellipsis,
             )
         }

@@ -3,7 +3,7 @@ package dev.bartuzen.qbitcontroller
 import org.gradle.api.JavaVersion as GradleJavaVersion
 
 object Versions {
-    const val AppVersion = "2.1.2"
+    const val AppVersion = "2.1.3"
     const val AppVersionCode = 27
 
     object Android {

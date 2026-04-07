@@ -1295,6 +1295,12 @@ private fun TorrentItem(
     modifier: Modifier = Modifier,
 ) {
     var swipeBackgroundAlpha by remember { mutableFloatStateOf(0f) }
+    val isTorrentPaused = torrent.state in listOf(
+        TorrentState.PAUSED_DL,
+        TorrentState.PAUSED_UP,
+        TorrentState.MISSING_FILES,
+        TorrentState.ERROR,
+    )
 
     Box(
         modifier = modifier
@@ -1310,14 +1316,7 @@ private fun TorrentItem(
                 targetValue = offsetX,
                 animationSpec = if (!isDragging) spring() else tween(durationMillis = 0),
             )
-            val maxSwipeDistance = with(LocalDensity.current) { 56.dp.toPx() }
-
-            val isTorrentPaused = torrent.state in listOf(
-                TorrentState.PAUSED_DL,
-                TorrentState.PAUSED_UP,
-                TorrentState.MISSING_FILES,
-                TorrentState.ERROR,
-            )
+            val maxSwipeDistance = with(LocalDensity.current) { 80.dp.toPx() }
 
             val imageVector = if (isTorrentPaused) {
                 Icons.Filled.PlayArrow
@@ -1385,6 +1384,13 @@ private fun TorrentItem(
                     .combinedClickable(
                         onClick = onClick,
                         onLongClick = onLongClick,
+                        onDoubleClick = {
+                            if (isTorrentPaused) {
+                                onResumeTorrent()
+                            } else {
+                                onPauseTorrent()
+                            }
+                        },
                     )
                     .padding(horizontal = 12.dp, vertical = 8.dp),
             ) {

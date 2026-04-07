@@ -23,7 +23,7 @@ open class SettingsManager(
     val showRelativeTimestamps = preference(settings, "showRelativeTimestamps", true)
     val sort = preference(settings, "sort", TorrentSort.NAME)
     val isReverseSorting = preference(settings, "isReverseSorting", false)
-    val connectionTimeout = preference(settings, "connectionTimeout", 10)
+    val connectionTimeout = preference(settings, "connectionTimeout", 3)
     val autoRefreshInterval = preference(settings, "autoRefreshInterval", 3)
     val notificationCheckInterval = preference(settings, "notificationCheckInterval", 15)
     val areTorrentSwipeActionsEnabled = preference(settings, "areTorrentSwipeActionsEnabled", true)
