@@ -219,7 +219,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.jetbrains.compose.resources.getPluralString
 import org.jetbrains.compose.resources.pluralStringResource
-import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.viewmodel.koinViewModel
 import qbitcontroller.composeapp.generated.resources.Res
 import qbitcontroller.composeapp.generated.resources.about_description

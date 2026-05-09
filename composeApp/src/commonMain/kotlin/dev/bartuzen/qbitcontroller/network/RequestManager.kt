@@ -167,10 +167,10 @@ class RequestManager(
             val body = loginResponse.body
 
             when {
+                code in 200..<300 && (body == "Ok." || body == null) -> RequestResult.Success(Unit)
                 code == 403 -> RequestResult.Error.RequestError.Banned
-                body == "Fails." -> RequestResult.Error.RequestError.InvalidCredentials
-                body != "Ok." -> RequestResult.Error.RequestError.UnknownLoginResponse(body)
-                else -> RequestResult.Success(Unit)
+                body == "Fails." || code == 401 -> RequestResult.Error.RequestError.InvalidCredentials
+                else -> RequestResult.Error.RequestError.UnknownLoginResponse(body)
             }
         } else {
             RequestResult.Success(Unit)
@@ -190,7 +190,7 @@ class RequestManager(
         val body = blockResponse.body
 
         return when (code) {
-            200 if body != null -> RequestResult.Success(body)
+            in 200..<300 if body != null -> RequestResult.Success(body)
             403 -> RequestResult.Error.RequestError.InvalidCredentials
             else -> RequestResult.Error.ApiError(code)
         }
