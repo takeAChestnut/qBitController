@@ -108,8 +108,18 @@ class ServerManager(
         fun onServerChangedListener(serverConfig: ServerConfig)
     }
 
+    fun getLastUsedServerId(): Int? {
+        val id = serverSettings[Keys.LastUsedServerId, -1]
+        return if (id == -1) null else id
+    }
+
+    fun setLastUsedServerId(serverId: Int) {
+        serverSettings[Keys.LastUsedServerId] = serverId
+    }
+
     private object Keys {
         const val ServerConfigs = "serverConfigs"
         const val LastServerId = "lastServerId"
+        const val LastUsedServerId = "lastUsedServerId"
     }
 }

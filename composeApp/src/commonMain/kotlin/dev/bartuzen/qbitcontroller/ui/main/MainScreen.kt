@@ -108,7 +108,14 @@ fun MainScreen(navigationFlow: Flow<DeepLinkDestination>? = null) {
 
         val serverManager = koinInject<ServerManager>()
         var currentServer by rememberSaveable(stateSaver = jsonSaver()) {
-            mutableStateOf(serverManager.serversFlow.value.firstOrNull())
+            val servers = serverManager.serversFlow.value
+            val lastUsedId = serverManager.getLastUsedServerId()
+            val initialServer = if (lastUsedId != null) {
+                servers.find { it.id == lastUsedId } ?: servers.firstOrNull()
+            } else {
+                servers.firstOrNull()
+            }
+            mutableStateOf(initialServer)
         }
         DisposableEffect(serverManager) {
             val serversFlow = serverManager.serversFlow
@@ -358,7 +365,10 @@ fun MainScreen(navigationFlow: Flow<DeepLinkDestination>? = null) {
                             currentServer = currentServer,
                             navigateToStartFlow = navigateToStartChannels[0].receiveAsFlow(),
                             torrentsDeepLinkFlow = torrentsDeepLinkChannel.receiveAsFlow(),
-                            onSelectServer = { currentServer = serverManager.getServer(it) },
+                            onSelectServer = {
+                                currentServer = serverManager.getServer(it)
+                                serverManager.setLastUsedServerId(it)
+                            },
                             onNavigateToRss = { selectedTabIndex = 2 },
                             onNavigateToSearch = { selectedTabIndex = 1 },
                             onShowNotificationPermission = { showNotificationPermission = true },

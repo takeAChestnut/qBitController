@@ -48,6 +48,9 @@ class RequestManager(
     private val loggedInServerIds = mutableListOf<Int>()
     private val initialLoginLocks = mutableMapOf<Int, Mutex>()
 
+    // 用于保护 session 过期后的重新登录，避免并发多次触发
+    private val reLoginLocks = mutableMapOf<Int, Mutex>()
+
     private val versions = mutableMapOf<Int, Pair<Instant, QBittorrentVersion>>()
     private val versionLocks = mutableMapOf<Int, Mutex>()
 
@@ -64,6 +67,7 @@ class RequestManager(
                 httpClientMap.remove(serverConfig.id)
                 loggedInServerIds.remove(serverConfig.id)
                 initialLoginLocks.remove(serverConfig.id)
+                reLoginLocks.remove(serverConfig.id)
                 versions.remove(serverConfig.id)
                 versionLocks.remove(serverConfig.id)
             },
@@ -72,6 +76,7 @@ class RequestManager(
                 httpClientMap.remove(serverConfig.id)
                 loggedInServerIds.remove(serverConfig.id)
                 initialLoginLocks.remove(serverConfig.id)
+                reLoginLocks.remove(serverConfig.id)
                 versions.remove(serverConfig.id)
                 versionLocks.remove(serverConfig.id)
             },
@@ -137,6 +142,8 @@ class RequestManager(
 
     private fun getInitialLoginLock(serverId: Int) = initialLoginLocks.getOrPut(serverId) { Mutex() }
 
+    private fun getReLoginLock(serverId: Int) = reLoginLocks.getOrPut(serverId) { Mutex() }
+
     fun getQBittorrentVersion(serverId: Int) = versions[serverId]?.second ?: QBittorrentVersion.Invalid
 
     private suspend fun updateVersionIfNeeded(serverId: Int) {
@@ -181,8 +188,6 @@ class RequestManager(
         serverId: Int,
         block: suspend (service: TorrentService) -> Response<T>,
     ): RequestResult<T> {
-        updateVersionIfNeeded(serverId)
-
         val service = getTorrentService(serverId)
 
         val blockResponse = block(service)
@@ -193,6 +198,30 @@ class RequestManager(
             in 200..<300 if body != null -> RequestResult.Success(body)
             403 -> RequestResult.Error.RequestError.InvalidCredentials
             else -> RequestResult.Error.ApiError(code)
+        }
+    }
+
+    // 处理 session 过期后的重新登录，使用 reLoginLock 保证并发安全：
+    // 多个请求同时收到 403 时，只有一个真正执行重新登录，其余等待结果后直接重试
+    private suspend fun <T : Any> reLoginAndRetry(
+        serverId: Int,
+        block: suspend (service: TorrentService) -> Response<T>,
+    ): RequestResult<T> {
+        val reLoginLock = getReLoginLock(serverId)
+        return reLoginLock.withLock {
+            // 进入锁后先尝试请求，若其他协程已重新登录则直接成功
+            val probeResponse = tryRequest(serverId, block)
+            if (probeResponse !is RequestResult.Error.RequestError.InvalidCredentials) {
+                return@withLock probeResponse
+            }
+
+            // 确实还是 403，执行重新登录
+            val loginResponse = tryLogin(serverId)
+            if (loginResponse is RequestResult.Success) {
+                tryRequest(serverId, block)
+            } else {
+                loginResponse as RequestResult.Error
+            }
         }
     }
 
@@ -208,7 +237,15 @@ class RequestManager(
                         loggedInServerIds.add(serverId)
                         initialLoginLock.tryUnlock()
 
-                        tryRequest(serverId, block)
+                        updateVersionIfNeeded(serverId)
+
+                        val response = tryRequest(serverId, block)
+
+                        if (response is RequestResult.Error.RequestError.InvalidCredentials) {
+                            reLoginAndRetry(serverId, block)
+                        } else {
+                            response
+                        }
                     } else {
                         loginResponse as RequestResult.Error
                     }
@@ -217,13 +254,7 @@ class RequestManager(
                     val response = tryRequest(serverId, block)
 
                     if (response is RequestResult.Error.RequestError.InvalidCredentials) {
-                        val loginResponse = tryLogin(serverId)
-
-                        if (loginResponse is RequestResult.Success) {
-                            tryRequest(serverId, block)
-                        } else {
-                            loginResponse as RequestResult.Error
-                        }
+                        reLoginAndRetry(serverId, block)
                     } else {
                         response
                     }

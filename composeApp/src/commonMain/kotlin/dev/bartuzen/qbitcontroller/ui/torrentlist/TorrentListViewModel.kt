@@ -519,6 +519,13 @@ class TorrentListViewModel(
             }
             is RequestResult.Error -> {
                 eventChannel.send(Event.Error(result))
+                // 如果数据为空（界面空白），则延迟后自动重试，避免用户一直看到空白界面
+                if (mainData.value == null && isActive) {
+                    delay(5.seconds)
+                    if (isActive && mainData.value == null) {
+                        loadMainData()
+                    }
+                }
             }
         }
     }
