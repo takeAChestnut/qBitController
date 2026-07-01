@@ -38,6 +38,8 @@ composeHotReload = "1.1.0"
 autolinktext = "2.0.2"
 composePipette = "2.0.0"
 windowSizeClass = "1.9.0"
+room = "2.7.1"
+ksp = "2.3.9"
 
 [libraries]
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "androidx-appcompat" }
@@ -107,6 +109,10 @@ autolinktext = { module = "sh.calvin.autolinktext:autolinktext", version.ref = "
 
 composePipette = { module = "dev.zt64.compose.pipette:compose-pipette", version.ref = "composePipette"}
 
+room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebase-bom" }
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
 firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
@@ -137,3 +143,4 @@ firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "
 
 android-test = { id = "com.android.test", version.ref = "agp" }
 baselineprofile = { id = "androidx.baselineprofile", version.ref = "baselineprofile" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

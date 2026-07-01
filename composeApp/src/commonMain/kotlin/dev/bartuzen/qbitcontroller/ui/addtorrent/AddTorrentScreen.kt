@@ -159,6 +159,7 @@ import qbitcontroller.composeapp.generated.resources.torrent_add_torrent_managem
 import qbitcontroller.composeapp.generated.resources.torrent_add_upload_speed_limit
 import qbitcontroller.composeapp.generated.resources.torrent_no_categories
 import qbitcontroller.composeapp.generated.resources.torrent_no_tags
+import qbitcontroller.composeapp.generated.resources.pending_torrents_already_queued
 
 object AddTorrentKeys {
     const val TorrentAdded = "addTorrent.torrentAdded"
@@ -171,6 +172,7 @@ fun AddTorrentScreen(
     torrentFileUris: List<String>?,
     onNavigateBack: () -> Unit,
     onAddTorrent: (serverId: Int) -> Unit,
+    onNavigateToPendingQueue: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AddTorrentViewModel = koinViewModel(parameters = { parametersOf(initialServerId) }),
 ) {
@@ -259,6 +261,15 @@ fun AddTorrentScreen(
             }
             is AddTorrentViewModel.Event.TorrentAdded -> {
                 onAddTorrent(event.serverId)
+            }
+            is AddTorrentViewModel.Event.TorrentQueued -> {
+                onNavigateToPendingQueue()
+            }
+            is AddTorrentViewModel.Event.TorrentAlreadyQueued -> {
+                snackbarHostState.currentSnackbarData?.dismiss()
+                scope.launch {
+                    snackbarHostState.showSnackbar(getString(Res.string.pending_torrents_already_queued))
+                }
             }
             AddTorrentViewModel.Event.NoServersFound -> {
                 onNavigateBack()

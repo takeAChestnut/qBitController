@@ -3,8 +3,12 @@ package dev.bartuzen.qbitcontroller.data
 import androidx.compose.ui.graphics.Color
 import com.materialkolor.PaletteStyle
 import com.russhwolf.settings.Settings
+import dev.bartuzen.qbitcontroller.model.Category
 import dev.bartuzen.qbitcontroller.ui.theme.defaultPrimaryColor
 import dev.bartuzen.qbitcontroller.ui.torrentlist.TorrentFilter
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 
 open class SettingsManager(
     settings: Settings,
@@ -40,6 +44,29 @@ open class SettingsManager(
     val isReverseSearchSorting = preference(settings, "isReverseSearchSort", false)
 
     val checkUpdates = preference(settings, "checkUpdates", true)
+
+    val serverCategoriesCache = jsonPreference(
+        settings,
+        "serverCategoriesCache",
+        emptyMap<Int, List<Category>>(),
+        serializer = MapSerializer(Int.serializer(), ListSerializer(Category.serializer())),
+    )
+
+    fun updateServerCategoriesCache(serverId: Int, categories: List<Category>) {
+        val current = serverCategoriesCache.value.toMutableMap()
+        current[serverId] = categories
+        serverCategoriesCache.value = current
+    }
+
+    fun removeServerCategoriesCache(serverId: Int) {
+        val current = serverCategoriesCache.value.toMutableMap()
+        if (current.remove(serverId) != null) {
+            serverCategoriesCache.value = current
+        }
+    }
+
+    fun getServerCategoriesCache(serverId: Int): List<Category> =
+        serverCategoriesCache.value[serverId] ?: emptyList()
 }
 
 enum class Theme {

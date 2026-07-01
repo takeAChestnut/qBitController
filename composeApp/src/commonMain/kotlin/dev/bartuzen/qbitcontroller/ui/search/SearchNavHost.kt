@@ -129,6 +129,9 @@ fun SearchNavHost(serverConfig: ServerConfig?, navigateToStartFlow: Flow<Unit>, 
 
                     navController.navigateUp()
                 },
+                onNavigateToPendingQueue = {
+                    navController.navigate(Destination.PendingTorrents)
+                },
             )
         }
     }

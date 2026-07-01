@@ -651,4 +651,19 @@
     <string name="update_dialog_title">有可用的更新</string>
     <string name="update_dialog_message">qBitController %1$s 現在已可用。您目前使用的版本為 %2$s。</string>
     <string name="update_dialog_download">下載</string>
+    <string name="pending_torrents_title">離線佇列</string>
+    <string name="pending_torrents_empty">暫無待上傳種子</string>
+    <string name="pending_torrents_delete_completed">刪除已完成</string>
+    <string name="pending_torrents_completed_deleted">已刪除完成項目</string>
+    <string name="pending_torrents_status_pending">等待上傳</string>
+    <string name="pending_torrents_status_uploading">上傳中</string>
+    <string name="pending_torrents_status_success">上傳成功</string>
+    <string name="pending_torrents_status_exists">伺服器已存在</string>
+    <string name="pending_torrents_status_failed">上傳失敗</string>
+    <string name="pending_torrents_status_error">網路錯誤</string>
+    <string name="pending_torrents_retry">重試</string>
+    <string name="pending_torrents_delete">刪除</string>
+    <string name="pending_torrents_queued">伺服器離線，已加入離線佇列</string>
+    <string name="pending_torrents_already_queued">該種子已在離線佇列中</string>
+    <string name="pending_torrents_retry_count">已重試: %1$d 次</string>
 </resources>

@@ -49,6 +49,9 @@ sealed class Destination {
     @Serializable
     data class Log(val serverId: Int) : Destination()
 
+    @Serializable
+    data object PendingTorrents : Destination()
+
     sealed class Settings {
         @Serializable
         data object Main : Destination()

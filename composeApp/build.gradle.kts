@@ -24,6 +24,7 @@ plugins {
     alias(libs.plugins.kotlinter)
     alias(libs.plugins.baselineprofile)
     alias(libs.plugins.buildConfig)
+    alias(libs.plugins.ksp)
 
     id("dev.bartuzen.qbitcontroller.language")
     id("dev.bartuzen.qbitcontroller.ios")
@@ -172,6 +173,9 @@ kotlin {
                 implementation(libs.accompanist.permissions)
 
                 implementation(libs.work.runtime)
+
+                implementation(libs.room.runtime)
+                implementation(libs.room.ktx)
             }
         }
 
@@ -193,6 +197,10 @@ kotlin {
             dependsOn(iosMain)
         }
     }
+}
+
+dependencies {
+    add("kspAndroid", libs.room.compiler)
 }
 
 buildConfig {

@@ -6,6 +6,7 @@ import dev.bartuzen.qbitcontroller.data.SettingsManager
 import dev.bartuzen.qbitcontroller.data.notification.TorrentDownloadedNotifier
 import dev.bartuzen.qbitcontroller.data.repositories.AddTorrentRepository
 import dev.bartuzen.qbitcontroller.data.repositories.TorrentListRepository
+import dev.bartuzen.qbitcontroller.data.repositories.TorrentQueueManager
 import dev.bartuzen.qbitcontroller.data.repositories.log.LogRepository
 import dev.bartuzen.qbitcontroller.data.repositories.rss.EditRssRuleRepository
 import dev.bartuzen.qbitcontroller.data.repositories.rss.RssArticlesRepository
@@ -89,7 +90,7 @@ val appModule = module {
     viewModel { (serverId: Int, hash: String) -> TorrentPeersViewModel(serverId, hash, get(), get(), get()) }
     viewModel { (serverId: Int, hash: String) -> TorrentWebSeedsViewModel(serverId, hash, get(), get()) }
 
-    viewModel { (initialServerId: Int?) -> AddTorrentViewModel(initialServerId, get(), get(), get(), get()) }
+    viewModel { (initialServerId: Int?) -> AddTorrentViewModel(initialServerId, get(), get(), get(), get(), get(), get()) }
 
     viewModel { (serverId: Int) -> RssFeedsViewModel(serverId, get()) }
     viewModel { (serverId: Int, feedPath: List<String>, uid: String?) ->

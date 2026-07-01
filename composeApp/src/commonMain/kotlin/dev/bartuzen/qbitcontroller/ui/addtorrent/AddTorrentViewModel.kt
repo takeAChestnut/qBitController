@@ -4,7 +4,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.bartuzen.qbitcontroller.data.ServerManager
+import dev.bartuzen.qbitcontroller.data.SettingsManager
 import dev.bartuzen.qbitcontroller.data.repositories.AddTorrentRepository
+import dev.bartuzen.qbitcontroller.data.repositories.TorrentQueueManager
 import dev.bartuzen.qbitcontroller.model.Category
 import dev.bartuzen.qbitcontroller.model.QBittorrentVersion
 import dev.bartuzen.qbitcontroller.network.RequestManager
@@ -38,7 +40,9 @@ class AddTorrentViewModel(
     private val savedStateHandle: SavedStateHandle,
     private val repository: AddTorrentRepository,
     private val serverManager: ServerManager,
+    private val settingsManager: SettingsManager,
     private val requestManager: RequestManager,
+    private val torrentQueueManager: TorrentQueueManager,
 ) : ViewModel() {
     private val eventChannel = Channel<Event>()
     val eventFlow = eventChannel.receiveAsFlow()
@@ -178,7 +182,26 @@ class AddTorrentViewModel(
                     eventChannel.send(Event.InvalidTorrentFile)
                 }
                 is RequestResult.Error -> {
-                    eventChannel.send(Event.Error(result))
+                    enqueueOffline(
+                        serverId = serverId,
+                        links = links,
+                        files = files,
+                        savePath = savePath,
+                        category = category,
+                        tags = tags,
+                        stopCondition = stopCondition,
+                        contentLayout = contentLayout,
+                        torrentName = torrentName,
+                        downloadSpeedLimit = downloadSpeedLimit,
+                        uploadSpeedLimit = uploadSpeedLimit,
+                        ratioLimit = ratioLimit,
+                        seedingTimeLimit = seedingTimeLimit,
+                        isPaused = isPaused,
+                        skipHashChecking = skipHashChecking,
+                        isAutoTorrentManagementEnabled = isAutoTorrentManagementEnabled,
+                        isSequentialDownloadEnabled = isSequentialDownloadEnabled,
+                        isFirstLastPiecePrioritized = isFirstLastPiecePrioritized,
+                    )
                 }
             }
             _isAdding.value = false
@@ -194,8 +217,13 @@ class AddTorrentViewModel(
                         .sortedWith(Category.comparator)
                 }
                 is RequestResult.Error -> {
-                    eventChannel.send(Event.Error(result))
-                    throw CancellationException()
+                    val cached = settingsManager.getServerCategoriesCache(serverId)
+                    if (cached.isNotEmpty()) {
+                        cached
+                    } else {
+                        eventChannel.send(Event.Error(result))
+                        throw CancellationException()
+                    }
                 }
             }
         }
@@ -206,7 +234,7 @@ class AddTorrentViewModel(
                 }
                 is RequestResult.Error -> {
                     eventChannel.send(Event.Error(result))
-                    throw CancellationException()
+                    null
                 }
             }
         }
@@ -217,15 +245,15 @@ class AddTorrentViewModel(
                 }
                 is RequestResult.Error -> {
                     eventChannel.send(Event.Error(result))
-                    throw CancellationException()
+                    null
                 }
             }
         }
 
         try {
             val categories = categoriesDeferred.await()
-            val tags = tagsDeferred.await()
-            val defaultSavePath = defaultSavePathDeferred.await()
+            val tags = tagsDeferred.await() ?: emptyList()
+            val defaultSavePath = defaultSavePathDeferred.await() ?: ""
 
             setServerData(ServerData(categories, tags, defaultSavePath))
         } catch (_: CancellationException) {
@@ -339,6 +367,79 @@ class AddTorrentViewModel(
         savePath.value = path
     }
 
+    private suspend fun enqueueOffline(
+        serverId: Int,
+        links: List<String>?,
+        files: List<PlatformFile>?,
+        savePath: String?,
+        category: String?,
+        tags: List<String>,
+        stopCondition: String?,
+        contentLayout: String?,
+        torrentName: String?,
+        downloadSpeedLimit: Int?,
+        uploadSpeedLimit: Int?,
+        ratioLimit: Double?,
+        seedingTimeLimit: Int?,
+        isPaused: Boolean,
+        skipHashChecking: Boolean,
+        isAutoTorrentManagementEnabled: Boolean?,
+        isSequentialDownloadEnabled: Boolean,
+        isFirstLastPiecePrioritized: Boolean,
+    ) {
+        var anyQueued = false
+        var anyDuplicate = false
+
+        links?.forEach { link ->
+            val added = torrentQueueManager.enqueueMagnet(
+                serverId = serverId,
+                magnetUri = link,
+                savePath = savePath,
+                category = category,
+                tags = tags,
+                stopCondition = stopCondition,
+                contentLayout = contentLayout,
+                torrentName = torrentName,
+                downloadSpeedLimit = downloadSpeedLimit,
+                uploadSpeedLimit = uploadSpeedLimit,
+                ratioLimit = ratioLimit,
+                seedingTimeLimit = seedingTimeLimit,
+                isPaused = isPaused,
+                skipHashChecking = skipHashChecking,
+                isAutoTorrentManagementEnabled = isAutoTorrentManagementEnabled,
+                isSequentialDownloadEnabled = isSequentialDownloadEnabled,
+                isFirstLastPiecePrioritized = isFirstLastPiecePrioritized,
+            )
+            if (added) anyQueued = true else anyDuplicate = true
+        }
+        files?.forEach { file ->
+            val added = torrentQueueManager.enqueueFile(
+                serverId = serverId,
+                file = file,
+                savePath = savePath,
+                category = category,
+                tags = tags,
+                stopCondition = stopCondition,
+                contentLayout = contentLayout,
+                torrentName = torrentName,
+                downloadSpeedLimit = downloadSpeedLimit,
+                uploadSpeedLimit = uploadSpeedLimit,
+                ratioLimit = ratioLimit,
+                seedingTimeLimit = seedingTimeLimit,
+                isPaused = isPaused,
+                skipHashChecking = skipHashChecking,
+                isAutoTorrentManagementEnabled = isAutoTorrentManagementEnabled,
+                isSequentialDownloadEnabled = isSequentialDownloadEnabled,
+                isFirstLastPiecePrioritized = isFirstLastPiecePrioritized,
+            )
+            if (added) anyQueued = true else anyDuplicate = true
+        }
+        when {
+            anyQueued -> eventChannel.send(Event.TorrentQueued(serverId))
+            anyDuplicate -> eventChannel.send(Event.TorrentAlreadyQueued(serverId))
+        }
+    }
+
     sealed class Event {
         data class Error(val error: RequestResult.Error) : Event()
         data object NoServersFound : Event()
@@ -347,6 +448,8 @@ class AddTorrentViewModel(
         data object InvalidTorrentFile : Event()
         data object TorrentAddError : Event()
         data class TorrentAdded(val serverId: Int) : Event()
+        data class TorrentQueued(val serverId: Int) : Event()
+        data class TorrentAlreadyQueued(val serverId: Int) : Event()
     }
 }
 

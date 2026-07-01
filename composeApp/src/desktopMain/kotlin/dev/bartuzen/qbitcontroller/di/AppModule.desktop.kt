@@ -4,6 +4,8 @@ import com.russhwolf.settings.Settings
 import dev.bartuzen.qbitcontroller.data.DesktopSettingsManager
 import dev.bartuzen.qbitcontroller.data.JsonSettings
 import dev.bartuzen.qbitcontroller.data.SettingsManager
+import dev.bartuzen.qbitcontroller.data.repositories.NoOpTorrentQueueManager
+import dev.bartuzen.qbitcontroller.data.repositories.TorrentQueueManager
 import dev.bartuzen.qbitcontroller.utils.Platform
 import dev.bartuzen.qbitcontroller.utils.currentPlatform
 import dev.bartuzen.qbitcontroller.utils.getString
@@ -33,4 +35,6 @@ actual val platformModule = module {
     }
 
     single { DesktopSettingsManager(get(named("settings"))) } bind SettingsManager::class
+
+    single<TorrentQueueManager> { NoOpTorrentQueueManager } bind TorrentQueueManager::class
 }

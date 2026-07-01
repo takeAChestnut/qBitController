@@ -73,6 +73,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.PendingActions
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
@@ -88,6 +89,8 @@ import androidx.compose.material.icons.outlined.KeyboardDoubleArrowUp
 import androidx.compose.material.icons.outlined.ToggleOff
 import androidx.compose.material.icons.outlined.ToggleOn
 import androidx.compose.material3.Button
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DrawerDefaults
@@ -215,6 +218,7 @@ import dev.bartuzen.qbitcontroller.utils.stringResourceSaver
 import dev.bartuzen.qbitcontroller.utils.topAppBarColor
 import dev.bartuzen.qbitcontroller.utils.topAppBarColors
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -230,6 +234,7 @@ import qbitcontroller.composeapp.generated.resources.app_name
 import qbitcontroller.composeapp.generated.resources.dialog_cancel
 import qbitcontroller.composeapp.generated.resources.dialog_ok
 import qbitcontroller.composeapp.generated.resources.main_action_about
+import qbitcontroller.composeapp.generated.resources.pending_torrents_title
 import qbitcontroller.composeapp.generated.resources.percentage_format
 import qbitcontroller.composeapp.generated.resources.size_kibibytes
 import qbitcontroller.composeapp.generated.resources.size_mebibytes
@@ -388,12 +393,14 @@ fun TorrentListScreen(
     currentServer: ServerConfig?,
     addTorrentFlow: Flow<Int>,
     deleteTorrentFlow: Flow<Unit>,
+    scrollToTopFlow: Flow<Unit>,
     onSelectServer: (serverId: Int) -> Unit,
     onNavigateToTorrent: (serverId: Int, torrentHash: String, torrentName: String) -> Unit,
     onNavigateToAddTorrent: (serverId: Int) -> Unit,
     onNavigateToRss: () -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToAddEditServer: (serverId: Int?) -> Unit,
+    onNavigateToPendingQueue: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TorrentListViewModel = koinViewModel(),
 ) {
@@ -402,6 +409,7 @@ fun TorrentListScreen(
     val mainData = viewModel.mainData.collectAsStateWithLifecycle().value
     val servers by viewModel.serversFlow.collectAsStateWithLifecycle()
     val serverId = currentServer?.id
+    val pendingCount by viewModel.pendingCountFlow.collectAsStateWithLifecycle(initialValue = 0)
 
     val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
@@ -456,7 +464,7 @@ fun TorrentListScreen(
                 if (snackbarHostState.currentSnackbarData?.visuals?.message != errorMessage) {
                     snackbarHostState.currentSnackbarData?.dismiss()
                     scope.launch {
-                        snackbarHostState.showSnackbar(errorMessage, duration = SnackbarDuration.Indefinite)
+                        snackbarHostState.showSnackbar(errorMessage, duration = SnackbarDuration.Short)
                     }
                 }
             }
@@ -966,6 +974,11 @@ fun TorrentListScreen(
             },
         ) {
             val listState = rememberLazyListState()
+            LaunchedEffect(scrollToTopFlow) {
+                scrollToTopFlow.collectLatest {
+                    listState.animateScrollToItem(0)
+                }
+            }
             Scaffold(
                 modifier = Modifier.fillMaxSize(),
                 contentWindowInsets = WindowInsets.safeDrawing,
@@ -997,6 +1010,8 @@ fun TorrentListScreen(
                         onReverseSortingChange = { viewModel.changeReverseSorting() },
                         onDialogOpen = { currentDialog = it },
                         onNavigateToAddTorrent = onNavigateToAddTorrent,
+                        pendingCount = pendingCount,
+                        onNavigateToPendingQueue = onNavigateToPendingQueue,
                     )
                 },
                 bottomBar = {
@@ -2265,6 +2280,8 @@ private fun TopBar(
     onReverseSortingChange: () -> Unit,
     onDialogOpen: (dialog: Dialog) -> Unit,
     onNavigateToAddTorrent: (serverId: Int) -> Unit,
+    pendingCount: Int,
+    onNavigateToPendingQueue: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
@@ -2376,6 +2393,12 @@ private fun TopBar(
             var showSortMenu by rememberSaveable { mutableStateOf(false) }
 
             val actionMenuItems = listOf(
+                ActionMenuItem(
+                    title = stringResource(Res.string.torrent_list_action_add_torrent),
+                    icon = Icons.Filled.Add,
+                    onClick = { onNavigateToAddTorrent(serverId) },
+                    showAsAction = true,
+                ),
                 if (!isSearchMode) {
                     ActionMenuItem(
                         title = stringResource(Res.string.action_search),
@@ -2383,7 +2406,7 @@ private fun TopBar(
                         onClick = {
                             onSearchModeChange(true)
                         },
-                        showAsAction = true,
+                        showAsAction = false,
                     )
                 } else {
                     ActionMenuItem(
@@ -2394,12 +2417,6 @@ private fun TopBar(
                         showAsAction = true,
                     )
                 },
-                ActionMenuItem(
-                    title = stringResource(Res.string.torrent_list_action_add_torrent),
-                    icon = Icons.Filled.Add,
-                    onClick = { onNavigateToAddTorrent(serverId) },
-                    showAsAction = true,
-                ),
                 ActionMenuItem(
                     title = stringResource(Res.string.torrent_list_action_statistics),
                     icon = Icons.Outlined.Analytics,
@@ -2520,6 +2537,21 @@ private fun TopBar(
                     showAsAction = false,
                 ),
             )
+
+            BadgedBox(
+                badge = {
+                    if (pendingCount > 0) {
+                        Badge { Text(pendingCount.coerceAtMost(99).toString()) }
+                    }
+                },
+            ) {
+                IconButton(onClick = onNavigateToPendingQueue) {
+                    Icon(
+                        imageVector = Icons.Filled.PendingActions,
+                        contentDescription = stringResource(Res.string.pending_torrents_title),
+                    )
+                }
+            }
 
             AppBarActions(
                 items = actionMenuItems,

@@ -20,6 +20,7 @@ import dev.bartuzen.qbitcontroller.ui.addtorrent.AddTorrentScreen
 import dev.bartuzen.qbitcontroller.ui.components.PlatformNavHost
 import dev.bartuzen.qbitcontroller.ui.main.DeepLinkDestination
 import dev.bartuzen.qbitcontroller.ui.main.Destination
+import dev.bartuzen.qbitcontroller.ui.pendingtorrents.PendingTorrentsScreenWrapper
 import dev.bartuzen.qbitcontroller.ui.settings.addeditserver.AddEditServerKeys
 import dev.bartuzen.qbitcontroller.ui.settings.addeditserver.AddEditServerResult
 import dev.bartuzen.qbitcontroller.ui.settings.addeditserver.AddEditServerScreen
@@ -63,9 +64,14 @@ fun TorrentsNavHost(
         currentServerLocal = currentServer
     }
 
+    val scrollToTopChannel = remember { Channel<Unit>() }
+
     LaunchedEffect(navigateToStartFlow) {
         navigateToStartFlow.collectLatest {
-            navController.popBackStack<Destination.TorrentList>(inclusive = false)
+            val popped = navController.popBackStack<Destination.TorrentList>(inclusive = false)
+            if (!popped) {
+                scrollToTopChannel.send(Unit)
+            }
         }
     }
 
@@ -138,6 +144,7 @@ fun TorrentsNavHost(
                 currentServer = currentServerLocal,
                 addTorrentFlow = addTorrentChannel.receiveAsFlow(),
                 deleteTorrentFlow = deleteTorrentChannel.receiveAsFlow(),
+                scrollToTopFlow = scrollToTopChannel.receiveAsFlow(),
                 onSelectServer = onSelectServer,
                 onNavigateToTorrent = { serverId, torrentHash, torrentName ->
                     navController.navigateWithLifecycle(Destination.Torrent(serverId, torrentHash, torrentName))
@@ -149,6 +156,9 @@ fun TorrentsNavHost(
                 onNavigateToSearch = onNavigateToSearch,
                 onNavigateToAddEditServer = { serverId ->
                     navController.navigateWithLifecycle(Destination.Settings.AddEditServer(serverId))
+                },
+                onNavigateToPendingQueue = {
+                    navController.navigateWithLifecycle(Destination.PendingTorrents)
                 },
             )
         }
@@ -185,6 +195,9 @@ fun TorrentsNavHost(
                     onSelectServer(serverId)
 
                     navController.navigateUp()
+                },
+                onNavigateToPendingQueue = {
+                    navController.navigate(Destination.PendingTorrents)
                 },
             )
         }
@@ -241,6 +254,12 @@ fun TorrentsNavHost(
                         ?.savedStateHandle
                         ?.setSerializable(AdvancedServerSettingsKeys.AdvancedSettings, advancedSettings)
                 },
+            )
+        }
+
+        composable<Destination.PendingTorrents> {
+            PendingTorrentsScreenWrapper(
+                onNavigateBack = { navController.navigateUp() },
             )
         }
     }

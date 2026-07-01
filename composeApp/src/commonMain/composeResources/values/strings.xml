@@ -816,4 +816,20 @@
     <string name="update_dialog_title">Update Available</string>
     <string name="update_dialog_message">qBitController %1$s is now available. You're currently using version %2$s.</string>
     <string name="update_dialog_download">Download</string>
+
+    <string name="pending_torrents_title">Pending Queue</string>
+    <string name="pending_torrents_empty">No pending torrents</string>
+    <string name="pending_torrents_delete_completed">Delete completed</string>
+    <string name="pending_torrents_completed_deleted">Completed items deleted</string>
+    <string name="pending_torrents_status_pending">Pending</string>
+    <string name="pending_torrents_status_uploading">Uploading</string>
+    <string name="pending_torrents_status_success">Success</string>
+    <string name="pending_torrents_status_exists">Already exists</string>
+    <string name="pending_torrents_status_failed">Failed</string>
+    <string name="pending_torrents_status_error">Error</string>
+    <string name="pending_torrents_retry">Retry</string>
+    <string name="pending_torrents_delete">Delete</string>
+    <string name="pending_torrents_queued">Added to offline queue</string>
+    <string name="pending_torrents_already_queued">Already in offline queue</string>
+    <string name="pending_torrents_retry_count">Retries: %1$d</string>
 </resources>

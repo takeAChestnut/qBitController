@@ -164,6 +164,9 @@ fun RssNavHost(serverConfig: ServerConfig?, navigateToStartFlow: Flow<Unit>, mod
 
                     navController.navigateUp()
                 },
+                onNavigateToPendingQueue = {
+                    navController.navigate(Destination.PendingTorrents)
+                },
             )
         }
     }

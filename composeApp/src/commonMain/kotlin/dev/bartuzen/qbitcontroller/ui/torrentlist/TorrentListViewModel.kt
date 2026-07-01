@@ -8,6 +8,7 @@ import dev.bartuzen.qbitcontroller.data.SettingsManager
 import dev.bartuzen.qbitcontroller.data.TorrentSort
 import dev.bartuzen.qbitcontroller.data.notification.TorrentDownloadedNotifier
 import dev.bartuzen.qbitcontroller.data.repositories.TorrentListRepository
+import dev.bartuzen.qbitcontroller.data.repositories.TorrentQueueManager
 import dev.bartuzen.qbitcontroller.model.MainData
 import dev.bartuzen.qbitcontroller.model.ServerConfig
 import dev.bartuzen.qbitcontroller.model.Torrent
@@ -48,12 +49,15 @@ class TorrentListViewModel(
     private val repository: TorrentListRepository,
     private val settingsManager: SettingsManager,
     private val notifier: TorrentDownloadedNotifier,
+    private val torrentQueueManager: TorrentQueueManager,
 ) : ViewModel() {
     private var serverScope = CoroutineScope(viewModelScope.coroutineContext + SupervisorJob())
 
     private val currentServer = savedStateHandle.getSerializableStateFlow<ServerConfig?>("currentServer", null)
 
     val serversFlow = serverManager.serversFlow
+
+    val pendingCountFlow = torrentQueueManager.pendingCountFlow
 
     private val isScreenActive = MutableStateFlow(false)
 
@@ -513,7 +517,14 @@ class TorrentListViewModel(
                             oldMainData
                         }
                     }
+                    val newCategories = result.data.categories
+                    if (newCategories != settingsManager.getServerCategoriesCache(serverId)) {
+                        settingsManager.updateServerCategoriesCache(serverId, newCategories)
+                    }
                     eventChannel.send(Event.UpdateMainDataSuccess)
+                    viewModelScope.launch {
+                        torrentQueueManager.flushQueue(serverId)
+                    }
                 }
                 notifier.checkCompleted(serverId, result.data.torrents)
             }
