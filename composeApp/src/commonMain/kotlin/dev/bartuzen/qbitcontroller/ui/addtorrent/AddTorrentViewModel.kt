@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.io.files.FileNotFoundException
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -153,8 +154,8 @@ class AddTorrentViewModel(
                 return@launch
             }
 
-            when (
-                val result = repository.addTorrent(
+            val result = withTimeoutOrNull(2000) {
+                repository.addTorrent(
                     serverId,
                     links,
                     filesWithContent,
@@ -174,21 +175,16 @@ class AddTorrentViewModel(
                     isSequentialDownloadEnabled,
                     isFirstLastPiecePrioritized,
                 )
-            ) {
-                is RequestResult.Success -> {
-                    if (result.data == "Fails.") {
-                        eventChannel.send(Event.TorrentAddError)
-                    } else {
-                        eventChannel.send(Event.TorrentAdded(serverId))
-                    }
-                }
-                is RequestResult.Error.ApiError if result.code == 409 -> {
+            }
+
+            when {
+                result is RequestResult.Error.ApiError && result.code == 409 -> {
                     eventChannel.send(Event.TorrentAddError)
                 }
-                is RequestResult.Error.ApiError if result.code == 415 -> {
+                result is RequestResult.Error.ApiError && result.code == 415 -> {
                     eventChannel.send(Event.InvalidTorrentFile)
                 }
-                is RequestResult.Error -> {
+                result == null || result is RequestResult.Error -> {
                     enqueueOffline(
                         serverId = serverId,
                         links = links,
@@ -209,6 +205,13 @@ class AddTorrentViewModel(
                         isSequentialDownloadEnabled = isSequentialDownloadEnabled,
                         isFirstLastPiecePrioritized = isFirstLastPiecePrioritized,
                     )
+                }
+                result is RequestResult.Success -> {
+                    if (result.data == "Fails.") {
+                        eventChannel.send(Event.TorrentAddError)
+                    } else {
+                        eventChannel.send(Event.TorrentAdded(serverId))
+                    }
                 }
             }
             _isAdding.value = false

@@ -82,6 +82,8 @@ class TorrentListViewModel(
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing = _isRefreshing.asStateFlow()
 
+    private var retryFailureCount = 0
+
     private val _mainData = MutableStateFlow<MainData?>(null)
     val mainData = _mainData.asStateFlow()
 
@@ -127,6 +129,7 @@ class TorrentListViewModel(
         viewModelScope.launch {
             currentServer.collectLatest { serverConfig ->
                 _mainData.value = null
+                retryFailureCount = 0
                 resetFilters(setFilterToDefault = true)
 
                 viewModelScope.launch {
@@ -485,7 +488,7 @@ class TorrentListViewModel(
         val trackerlessCount: Int,
     )
 
-    private fun updateMainData() = serverScope.launch {
+    private fun updateMainData(autoRefresh: Boolean = false): Job = serverScope.launch {
         val serverId = currentServer.value?.id ?: return@launch
         val currentMainData = mainData.value
 
@@ -509,6 +512,7 @@ class TorrentListViewModel(
 
         when (result) {
             is RequestResult.Success -> {
+                retryFailureCount = 0
                 if (isActive && currentServer.value?.id == serverId) {
                     _mainData.update { oldMainData ->
                         if (isFullUpdate || oldMainData == null || oldMainData.rid < result.data.rid) {
@@ -529,12 +533,15 @@ class TorrentListViewModel(
                 notifier.checkCompleted(serverId, result.data.torrents)
             }
             is RequestResult.Error -> {
-                eventChannel.send(Event.Error(result))
-                // 如果数据为空（界面空白），则延迟后自动重试，避免用户一直看到空白界面
+                if (!autoRefresh || mainData.value == null) {
+                    eventChannel.send(Event.Error(result))
+                }
                 if (mainData.value == null && isActive) {
-                    delay(5.seconds)
+                    retryFailureCount++
+                    val delaySeconds = minOf(2L shl (retryFailureCount - 1), 60L)
+                    delay(delaySeconds.seconds)
                     if (isActive && mainData.value == null) {
-                        loadMainData()
+                        updateMainData(autoRefresh = true)
                     }
                 }
             }
@@ -544,7 +551,7 @@ class TorrentListViewModel(
     fun loadMainData(autoRefresh: Boolean = false) {
         if (isNaturalLoading.value == null) {
             _isNaturalLoading.value = !autoRefresh
-            updateMainData().invokeOnCompletion {
+            updateMainData(autoRefresh).invokeOnCompletion {
                 _isNaturalLoading.value = null
             }
         }
@@ -553,7 +560,7 @@ class TorrentListViewModel(
     fun refreshMainData() {
         if (!isRefreshing.value) {
             _isRefreshing.value = true
-            updateMainData().invokeOnCompletion {
+            updateMainData(autoRefresh = false).invokeOnCompletion {
                 _isRefreshing.value = false
             }
         }
