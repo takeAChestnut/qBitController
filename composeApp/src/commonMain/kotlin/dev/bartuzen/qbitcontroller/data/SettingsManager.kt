@@ -67,6 +67,26 @@ open class SettingsManager(
 
     fun getServerCategoriesCache(serverId: Int): List<Category> =
         serverCategoriesCache.value[serverId] ?: emptyList()
+
+    private val lastUsedCategoryMap = jsonPreference(
+        settings,
+        "lastUsedCategoryMap",
+        emptyMap<Int, String>(),
+        serializer = MapSerializer(Int.serializer(), String.serializer()),
+    )
+
+    fun getLastUsedCategory(serverId: Int): String? =
+        lastUsedCategoryMap.value[serverId]
+
+    fun setLastUsedCategory(serverId: Int, category: String?) {
+        val current = lastUsedCategoryMap.value.toMutableMap()
+        if (category != null) {
+            current[serverId] = category
+        } else {
+            current.remove(serverId)
+        }
+        lastUsedCategoryMap.value = current
+    }
 }
 
 enum class Theme {

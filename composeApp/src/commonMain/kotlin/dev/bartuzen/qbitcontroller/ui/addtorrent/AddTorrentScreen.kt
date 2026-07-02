@@ -193,7 +193,9 @@ fun AddTorrentScreen(
     }
     var torrentFileError by rememberSaveable { mutableStateOf(false) }
 
-    var selectedCategory by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedCategory by rememberSaveable {
+        mutableStateOf<String?>(null)
+    }
     val selectedTags = rememberSaveable(saver = stateListSaver()) { mutableStateListOf<String>() }
 
     var startTorrent by rememberSaveable { mutableStateOf(true) }
@@ -260,9 +262,17 @@ fun AddTorrentScreen(
                 }
             }
             is AddTorrentViewModel.Event.TorrentAdded -> {
+                val currentServerId = serverId
+                if (currentServerId != null) {
+                    viewModel.saveLastUsedCategory(currentServerId, selectedCategory)
+                }
                 onAddTorrent(event.serverId)
             }
             is AddTorrentViewModel.Event.TorrentQueued -> {
+                val currentServerId = serverId
+                if (currentServerId != null) {
+                    viewModel.saveLastUsedCategory(currentServerId, selectedCategory)
+                }
                 onNavigateToPendingQueue()
             }
             is AddTorrentViewModel.Event.TorrentAlreadyQueued -> {
@@ -273,6 +283,11 @@ fun AddTorrentScreen(
             }
             AddTorrentViewModel.Event.NoServersFound -> {
                 onNavigateBack()
+            }
+            is AddTorrentViewModel.Event.CategoriesRefreshed -> {
+                if (selectedCategory != null && selectedCategory !in event.categoryNames) {
+                    selectedCategory = null
+                }
             }
         }
     }
@@ -288,12 +303,27 @@ fun AddTorrentScreen(
 
     PersistentLaunchedEffect(serverId) {
         savePath = TextFieldValue()
+        val currentServerId = serverId
+        if (currentServerId != null) {
+            val defaultCategory = viewModel.getDefaultCategory(currentServerId)
+            if (defaultCategory != null) {
+                selectedCategory = defaultCategory
+            }
+        }
     }
 
     PersistentLaunchedEffect(serverData == null) {
         if (savePath.text.isBlank()) {
             serverData?.let {
                 savePath = TextFieldValue(it.defaultSavePath)
+            }
+        }
+    }
+
+    PersistentLaunchedEffect(serverData?.defaultSavePath) {
+        if (savePath.text.isBlank()) {
+            serverData?.defaultSavePath?.takeIf { it.isNotBlank() }?.let {
+                savePath = TextFieldValue(it)
             }
         }
     }

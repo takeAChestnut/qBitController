@@ -72,6 +72,13 @@ class AddTorrentViewModel(
     private var loadCategoryTagJob: Job? = null
     private var searchDirectoriesJob: Job? = null
 
+    fun getDefaultCategory(serverId: Int): String? =
+        settingsManager.getLastUsedCategory(serverId)
+
+    fun saveLastUsedCategory(serverId: Int, category: String?) {
+        settingsManager.setLastUsedCategory(serverId, category)
+    }
+
     init {
         viewModelScope.launch {
             if (serverId.value == null) {
@@ -263,15 +270,55 @@ class AddTorrentViewModel(
     fun loadData(serverId: Int) {
         loadCategoryTagJob?.cancel()
 
-        setLoading(true)
-        val job = updateData(serverId)
-        job.invokeOnCompletion { e ->
-            if (e !is CancellationException) {
-                setLoading(false)
-                loadCategoryTagJob = null
+        val cachedCategories = settingsManager.getServerCategoriesCache(serverId)
+        if (cachedCategories.isNotEmpty()) {
+            // 有缓存：立即用缓存渲染（不显示进度条），再后台静默刷新
+            val currentData = serverData.value
+            if (currentData == null) {
+                setServerData(ServerData(cachedCategories, emptyList(), ""))
+            }
+            val job = updateDataSilently(serverId)
+            loadCategoryTagJob = job
+        } else {
+            // 无缓存：显示进度条等待网络
+            setLoading(true)
+            val job = updateData(serverId)
+            job.invokeOnCompletion { e ->
+                if (e !is CancellationException) {
+                    setLoading(false)
+                    loadCategoryTagJob = null
+                }
+            }
+            loadCategoryTagJob = job
+        }
+    }
+
+    private fun updateDataSilently(serverId: Int) = viewModelScope.launch {
+        val categoriesDeferred = async {
+            when (val result = repository.getCategories(serverId)) {
+                is RequestResult.Success -> result.data.values.toList().sortedWith(Category.comparator)
+                is RequestResult.Error -> settingsManager.getServerCategoriesCache(serverId)
             }
         }
-        loadCategoryTagJob = job
+        val tagsDeferred = async {
+            when (val result = repository.getTags(serverId)) {
+                is RequestResult.Success -> result.data.sorted()
+                is RequestResult.Error -> null
+            }
+        }
+        val defaultSavePathDeferred = async {
+            when (val result = repository.getDefaultSavePath(serverId)) {
+                is RequestResult.Success -> result.data
+                is RequestResult.Error -> null
+            }
+        }
+
+        val categories = categoriesDeferred.await()
+        val tags = tagsDeferred.await() ?: emptyList()
+        val defaultSavePath = defaultSavePathDeferred.await() ?: ""
+
+        setServerData(ServerData(categories, tags, defaultSavePath))
+        eventChannel.send(Event.CategoriesRefreshed(categories.map { it.name }))
     }
 
     fun refreshData(serverId: Int) {
@@ -450,6 +497,7 @@ class AddTorrentViewModel(
         data class TorrentAdded(val serverId: Int) : Event()
         data class TorrentQueued(val serverId: Int) : Event()
         data class TorrentAlreadyQueued(val serverId: Int) : Event()
+        data class CategoriesRefreshed(val categoryNames: List<String>) : Event()
     }
 }
 
